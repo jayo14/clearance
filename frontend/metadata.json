@@ -1,0 +1,7 @@
+{
+  "name": "LASUSTECH Clearance System",
+  "description": "A comprehensive React application for LASUSTECH university admission clearance. Features student workflows for biodata and document submission, and an admin dashboard for verification and approval. Includes AI-powered document analysis using Gemini 2.5 Flash and real-time status tracking.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
