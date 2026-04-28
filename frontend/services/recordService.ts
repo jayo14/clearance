@@ -1,6 +1,6 @@
 import { ClearanceRecord, OfficeType, DocumentRequirement, ClearanceItem } from '../types';
 
-const API_URL = 'http://localhost:8000/api/records';
+const API_URL = '/api/records';
 
 export const recordService = {
     getToken() {

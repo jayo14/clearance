@@ -1,7 +1,7 @@
 import { Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom';
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Student, DocumentRequirement, OfficeType, ClearanceStatus, ClearanceRecord } from '../types';
-import { REQUIREMENTS, OFFICE_CONFIG } from '../services/mockData';
+import { OFFICE_CONFIG } from './OfficeView';
 import { Button, ThemeToggle, LoadingSpinner } from '../components/UI';
 import { Certificate } from '../components/Certificate';
 import { StudentLayout } from '../components/StudentLayout';

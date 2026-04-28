@@ -1,8 +1,8 @@
 import { Routes, Route, useNavigate, useParams, Navigate, useLocation } from 'react-router-dom';
-import React, { useState } from 'react';
-import { AdminUser, Student } from '../types';
+import React, { useState, useEffect } from 'react';
+import { AdminUser, Student, ClearanceItem } from '../types';
 import { OfficerLayout } from '../components/OfficerLayout';
-import { MOCK_STUDENTS } from '../services/mockData';
+import { recordService } from '../services/recordService';
 
 // Import Page Components
 import { DashboardHome } from './admin/DashboardHome';
@@ -13,6 +13,7 @@ import { Analytics } from './admin/Analytics';
 import NotificationsPage from './NotificationsPage'; 
 import { SearchResults } from './admin/SearchResults';
 import { StudentReview } from '../components/StudentReview';
+import { LoadingSpinner } from '../components/UI';
 
 interface Props {
   user: AdminUser;
@@ -35,9 +36,16 @@ export default function AdminPortal({ user, onLogout }: Props) {
     else navigate(`/dashboard/${view}`);
   };
 
-  const handleSelectStudent = (s: Student | string) => {
-      const id = typeof s === 'string' ? s : s.id;
-      if (id) navigate(`/dashboard/review/${id}`);
+  const handleSelectStudent = (s: Student | string | ClearanceItem) => {
+      let id: string;
+      if (typeof s === 'string') {
+          id = s;
+      } else if ('id' in s) {
+          id = s.id;
+      } else {
+          return;
+      }
+      navigate(`/dashboard/review/${id}`);
   };
 
   // Extract active view from path for layout highlighting
@@ -59,7 +67,7 @@ export default function AdminPortal({ user, onLogout }: Props) {
           <Route path="analytics" element={<Analytics user={user} />} />
           <Route path="notifications" element={<NotificationsPage onNavigate={handleNavigate} />} />
           <Route path="search" element={<SearchResults initialQuery={searchQuery} onSelectStudent={handleSelectStudent} />} />
-          <Route path="review/:studentId" element={<ReviewWrapper user={user} />} />
+          <Route path="review/:itemId" element={<ReviewWrapper user={user} />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </OfficerLayout>
@@ -67,35 +75,55 @@ export default function AdminPortal({ user, onLogout }: Props) {
 }
 
 const ReviewWrapper = ({ user }: { user: AdminUser }) => {
-    const { studentId } = useParams<{ studentId: string }>();
+    const { itemId } = useParams<{ itemId: string }>();
     const navigate = useNavigate();
-    const selectedStudent = MOCK_STUDENTS.find(s => s.id === studentId);
+    const [item, setItem] = useState<ClearanceItem | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-    if (!selectedStudent) return <Navigate to="/dashboard/queue" replace />;
+    useEffect(() => {
+        const fetchItem = async () => {
+            if (!itemId) return;
+            try {
+                const data = await recordService.getOfficerClearanceDetail(itemId);
+                setItem(data);
+            } catch (err) {
+                console.error('Failed to fetch clearance item:', err);
+                setError('Failed to load clearance item');
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchItem();
+    }, [itemId]);
+
+    if (loading) return <div className="p-12 flex justify-center"><LoadingSpinner text="Loading clearance data..." /></div>;
+    if (error || !item) return <Navigate to="/dashboard/queue" replace />;
+
+    // For the StudentReview component, we need a Student object.
+    // However, the backend ClearanceItemSerializer should provide student data.
+    // Let's assume the item returned has enough student info or we adapt StudentReview.
 
     const handleNextStudent = () => {
-        const currentIndex = MOCK_STUDENTS.findIndex(s => s.id === studentId);
-        if (currentIndex !== -1 && currentIndex < MOCK_STUDENTS.length - 1) {
-            navigate(`/dashboard/review/${MOCK_STUDENTS[currentIndex + 1].id}`);
-        } else {
-            alert("End of queue");
-        }
+        // Logic to navigate to next student in queue could be implemented here
+        navigate('/dashboard/queue');
     };
 
     const handlePrevStudent = () => {
-        const currentIndex = MOCK_STUDENTS.findIndex(s => s.id === studentId);
-        if (currentIndex > 0) {
-            navigate(`/dashboard/review/${MOCK_STUDENTS[currentIndex - 1].id}`);
-        }
+        navigate('/dashboard/queue');
     };
 
     return (
         <StudentReview 
-          student={selectedStudent} 
+          clearanceItem={item}
           adminUser={user}
           onBack={() => navigate(-1)} 
           onNext={handleNextStudent}
           onPrev={handlePrevStudent}
+          onUpdate={() => {
+              // Refresh data or navigate back
+              navigate('/dashboard/queue');
+          }}
         />
     );
 };

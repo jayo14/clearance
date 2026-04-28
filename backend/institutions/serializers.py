@@ -13,7 +13,7 @@ class CollegeSerializer(serializers.ModelSerializer):
     class Meta:
         model = College
         fields = ['id', 'institution', 'name', 'dean_name', 'departments']
-        read_only_fields = ['id']
+        read_only_fields = ['id', 'institution']
 
 class InstitutionSerializer(serializers.ModelSerializer):
     class Meta:

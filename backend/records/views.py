@@ -206,3 +206,22 @@ class ConfirmSubmissionView(views.APIView):
             "message": "Clearance submission confirmed successfully",
             "record": ClearanceRecordSerializer(record).data
         }, status=status.HTTP_200_OK)
+
+class GlobalStudentSearchView(views.APIView):
+    def get(self, request):
+        query = request.query_params.get('q', '')
+        if len(query) < 2:
+            return Response([])
+
+        from accounts.models import User
+        from accounts.serializers import UserSerializer
+
+        students = User.objects.filter(
+            role='STUDENT',
+            student_profile__full_name__icontains=query
+        ) | User.objects.filter(
+            role='STUDENT',
+            student_profile__jamb_number__icontains=query
+        )
+
+        return Response(UserSerializer(students.distinct()[:10], many=True).data)

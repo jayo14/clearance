@@ -1,6 +1,6 @@
 import { User, UserRole, OfficeType } from '../types';
 
-const API_URL = 'http://localhost:8000/api/accounts';
+const API_URL = '/api/accounts';
 
 export const authService = {
     async login(username: string, password: string): Promise<{ access: string; refresh: string; user: any }> {

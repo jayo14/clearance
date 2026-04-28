@@ -1,141 +1,186 @@
-
-import React, { useState } from 'react';
-import { useNotification } from '../context/NotificationContext';
-import { PageHeader, Button, Card } from '../components/UI';
+import React, { useState, useEffect } from 'react';
 import { 
-  Bell, Check, Trash2, Filter, Search, Inbox, 
-  CheckCircle, AlertTriangle, AlertCircle, Info, ExternalLink
+  Bell, CheckCircle, AlertCircle, Info, Clock,
+  Trash2, MailOpen, ArrowLeft, Search, Filter,
+  ChevronRight, Star, MoreVertical
 } from 'lucide-react';
+import { AppNotification } from '../types';
+import { Card, Button, PageHeader, LoadingSpinner } from '../components/UI';
+import { notificationService } from '../services/notificationService';
 
 interface Props {
-    onNavigate?: (view: string) => void;
+  onNavigate: (view: any) => void;
 }
 
 export default function NotificationsPage({ onNavigate }: Props) {
-  const { notifications, markAsRead, markAllAsRead, clearAllNotifications } = useNotification();
-  const [filter, setFilter] = useState<'ALL' | 'UNREAD' | 'READ'>('ALL');
-  const [search, setSearch] = useState('');
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'all' | 'unread' | 'important'>('all');
 
-  const filteredNotifications = notifications.filter(n => {
-    const matchesFilter = 
-        filter === 'ALL' ? true : 
-        filter === 'UNREAD' ? !n.isRead : 
-        n.isRead;
-    
-    const matchesSearch = 
-        n.title.toLowerCase().includes(search.toLowerCase()) || 
-        n.message.toLowerCase().includes(search.toLowerCase());
+  const fetchNotifications = async () => {
+    try {
+        const data = await notificationService.getNotifications();
+        setNotifications(data);
+    } catch (err) {
+        console.error('Failed to fetch notifications:', err);
+    } finally {
+        setLoading(false);
+    }
+  };
 
-    return matchesFilter && matchesSearch;
-  });
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
 
-  const getIcon = (type: string) => {
-      switch(type) {
-          case 'success': return <CheckCircle size={20} className="text-emerald-500" />;
-          case 'error': return <AlertCircle size={20} className="text-red-500" />;
-          case 'warning': return <AlertTriangle size={20} className="text-amber-500" />;
-          default: return <Info size={20} className="text-primary" />;
+  const markAsRead = async (id: string) => {
+      try {
+          await notificationService.markAsRead(id);
+          setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+      } catch (err) {
+          console.error('Failed to mark as read:', err);
       }
   };
 
+  const deleteNotification = async (id: string) => {
+      if (confirm("Delete this notification?")) {
+          try {
+              await notificationService.deleteNotification(id);
+              setNotifications(prev => prev.filter(n => n.id !== id));
+          } catch (err) {
+              console.error('Failed to delete notification:', err);
+          }
+      }
+  };
+
+  const getIcon = (type: string) => {
+    switch (type) {
+      case 'success': return <CheckCircle className="text-emerald-500" size={20} />;
+      case 'error': return <AlertCircle className="text-red-500" size={20} />;
+      case 'warning': return <AlertCircle className="text-amber-500" size={20} />;
+      default: return <Info className="text-blue-500" size={20} />;
+    }
+  };
+
+  const filteredNotifications = notifications.filter(n => {
+      if (filter === 'unread') return !n.isRead;
+      return true;
+  });
+
   return (
-    <div className="animate-in fade-in duration-500 pb-20">
+    <div className="animate-in fade-in slide-in-from-right duration-500 pb-12">
       <PageHeader 
-          title="Notifications" 
-          breadcrumbs={['Dashboard', 'Notifications']}
-          onBreadcrumbClick={(index: number) => {
-              if (index === 0 && onNavigate) onNavigate('dashboard');
-          }}
+        title="Notifications"
+        breadcrumbs={['Dashboard', 'Notifications']}
+        actions={
+            <Button variant="outline" size="sm" onClick={() => setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))}>
+                Mark all as read
+            </Button>
+        }
       />
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-          <div className="flex bg-slate-100 dark:bg-secondary p-1 rounded-xl w-full md:w-auto">
-              {['ALL', 'UNREAD', 'READ'].map((tab) => (
-                  <button
-                      key={tab}
-                      onClick={() => setFilter(tab as any)}
-                      className={`flex-1 md:flex-none px-6 py-2 rounded-lg text-xs font-bold transition-all ${
-                          filter === tab 
-                          ? 'bg-card bg-muted text-foreground shadow-sm' 
-                          : 'text-muted-foreground hover:text-foreground/80 dark:hover:text-muted-foreground/80'
-                      }`}
-                  >
-                      {tab}
-                  </button>
-              ))}
-          </div>
+      <div className="grid lg:grid-cols-4 gap-8">
+        {/* Sidebar Filters */}
+        <aside className="lg:col-span-1 space-y-2">
+            {[
+                { id: 'all', label: 'All Notifications', icon: Bell, count: notifications.length },
+                { id: 'unread', label: 'Unread', icon: MailOpen, count: notifications.filter(n => !n.isRead).length },
+                { id: 'important', label: 'Important', icon: Star, count: 0 },
+            ].map(item => (
+                <button
+                    key={item.id}
+                    onClick={() => setFilter(item.id as any)}
+                    className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all font-bold text-sm ${
+                        filter === item.id
+                        ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-[1.02]'
+                        : 'text-muted-foreground hover:bg-muted'
+                    }`}
+                >
+                    <div className="flex items-center gap-3">
+                        <item.icon size={18} />
+                        {item.label}
+                    </div>
+                    {item.count > 0 && (
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] ${filter === item.id ? 'bg-white text-primary' : 'bg-primary/10 text-primary'}`}>
+                            {item.count}
+                        </span>
+                    )}
+                </button>
+            ))}
+        </aside>
 
-          <div className="flex gap-3 w-full md:w-auto">
-              <div className="relative flex-1 md:flex-none md:w-64">
-                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <input 
-                      type="text" 
-                      placeholder="Search notifications..."
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2 bg-card border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-              </div>
-              <Button size="sm" variant="outline" onClick={markAllAsRead} title="Mark all as read">
-                  <Check size={16} /> <span className="hidden sm:inline">Read All</span>
-              </Button>
-              <Button size="sm" variant="outline" onClick={clearAllNotifications} title="Clear history" className="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10">
-                  <Trash2 size={16} />
-              </Button>
-          </div>
-      </div>
+        {/* Notifications List */}
+        <div className="lg:col-span-3 space-y-4">
+            <div className="bg-card border border-border rounded-2xl p-4 flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2 text-sm font-bold text-muted-foreground uppercase tracking-widest px-2">
+                    <Filter size={16} /> Filtered by: {filter}
+                </div>
+                <div className="relative group">
+                    <button className="p-2 hover:bg-muted rounded-xl transition-colors">
+                        <MoreVertical size={20} className="text-muted-foreground" />
+                    </button>
+                </div>
+            </div>
 
-      <div className="space-y-4">
-          {filteredNotifications.length === 0 ? (
-              <div className="text-center py-20 bg-card rounded-2xl border border-border border-dashed">
-                  <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4 text-muted-foreground/80">
-                      <Inbox size={24} />
-                  </div>
-                  <h3 className="text-lg font-bold text-foreground">No notifications found</h3>
-                  <p className="text-muted-foreground">You're all caught up!</p>
-              </div>
-          ) : (
-              filteredNotifications.map(notif => (
-                  <Card 
-                      key={notif.id} 
-                      className={`flex gap-4 p-5 transition-all hover:shadow-md ${!notif.isRead ? 'border-l-4 border-l-blue-500 bg-primary/10/20 dark:bg-blue-900/5' : ''}`}
-                      onClick={() => markAsRead(notif.id)}
-                  >
-                      <div className="mt-1 shrink-0 bg-card bg-muted p-2 rounded-full shadow-sm border border-border dark:border-slate-700 h-fit">
-                          {getIcon(notif.type)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-start mb-1">
-                              <h4 className={`text-base ${!notif.isRead ? 'font-bold text-foreground' : 'font-medium text-foreground/80'}`}>
-                                  {notif.title}
-                              </h4>
-                              <span className="text-xs text-muted-foreground whitespace-nowrap ml-4">
-                                  {new Date(notif.timestamp).toLocaleString()}
-                              </span>
-                          </div>
-                          <p className="text-sm text-muted-foreground dark:text-muted-foreground leading-relaxed mb-3 max-w-3xl">
-                              {notif.message}
-                          </p>
-                          
-                          <div className="flex gap-2">
-                              {notif.actionLabel && (
-                                  <Button size="sm" variant="primary" className="h-8 text-xs">
-                                      {notif.actionLabel}
-                                  </Button>
-                              )}
-                              {notif.link && (
-                                  <Button size="sm" variant="outline" className="h-8 text-xs">
-                                      View Details <ExternalLink size={12} className="ml-1" />
-                                  </Button>
-                              )}
-                          </div>
-                      </div>
-                      {!notif.isRead && (
-                          <div className="w-2 h-2 rounded-full bg-primary/100 shrink-0 self-center"></div>
-                      )}
-                  </Card>
-              ))
-          )}
+            {loading ? (
+                <div className="py-12 flex justify-center"><LoadingSpinner text="Fetching notifications..." /></div>
+            ) : filteredNotifications.length === 0 ? (
+                <Card className="p-20 text-center flex flex-col items-center border-none bg-muted/30">
+                    <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-6 opacity-40">
+                        <Bell size={40} />
+                    </div>
+                    <h3 className="text-xl font-bold text-foreground">No notifications found</h3>
+                    <p className="text-muted-foreground mt-2">When you have updates, they'll appear here.</p>
+                </Card>
+            ) : (
+                <div className="space-y-3">
+                    {filteredNotifications.map((n) => (
+                        <Card
+                            key={n.id}
+                            className={`p-0 overflow-hidden transition-all hover:shadow-md border-border ${!n.isRead ? 'border-l-4 border-l-primary' : ''}`}
+                        >
+                            <div className="flex items-start gap-4 p-5">
+                                <div className="mt-1 p-2 bg-muted rounded-xl shrink-0">
+                                    {getIcon(n.type)}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex justify-between items-start gap-2 mb-1">
+                                        <h4 className={`font-bold text-foreground ${!n.isRead ? 'text-primary' : ''}`}>{n.title}</h4>
+                                        <span className="text-[10px] font-bold text-muted-foreground uppercase whitespace-nowrap flex items-center gap-1">
+                                            <Clock size={10} /> {new Date(n.timestamp).toLocaleDateString()}
+                                        </span>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
+                                        {n.message}
+                                    </p>
+
+                                    <div className="flex items-center gap-4 mt-4">
+                                        {n.actionLabel && (
+                                            <Button size="sm" variant="secondary" onClick={() => onNavigate('status')}>
+                                                {n.actionLabel}
+                                            </Button>
+                                        )}
+                                        {!n.isRead && (
+                                            <button
+                                                onClick={() => markAsRead(n.id)}
+                                                className="text-[10px] font-black uppercase text-primary hover:underline tracking-widest"
+                                            >
+                                                Mark as read
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={() => deleteNotification(n.id)}
+                                            className="text-[10px] font-black uppercase text-muted-foreground hover:text-red-500 transition-colors tracking-widest ml-auto"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </Card>
+                    ))}
+                </div>
+            )}
+        </div>
       </div>
     </div>
   );

@@ -2,7 +2,7 @@ from django.urls import path
 from .views import (
     StudentClearanceRecordView, DocumentUploadView, DocumentRequirementListView, 
     SubmitClearanceView, OfficerClearanceListView, OfficerClearanceDetailView,
-    ConfirmSubmissionView
+    ConfirmSubmissionView, GlobalStudentSearchView
 )
 
 urlpatterns = [
@@ -13,4 +13,5 @@ urlpatterns = [
     path('officer/list/', OfficerClearanceListView.as_view(), name='officer-clearance-list'),
     path('officer/detail/<int:pk>/', OfficerClearanceDetailView.as_view(), name='officer-clearance-detail'),
     path('confirm-submission/', ConfirmSubmissionView.as_view(), name='confirm-submission'),
+    path('search-students/', GlobalStudentSearchView.as_view(), name='search-students'),
 ]

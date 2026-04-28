@@ -1,7 +1,12 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { OfficeType, ClearanceRecord, DocumentRequirement, ClearanceStatus } from '../types';
-import { OFFICE_CONFIG } from '../services/mockData';
+export const OFFICE_CONFIG = [
+  { id: 'ADMISSIONS', label: 'Admissions Office', icon: BookOpen, color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' },
+  { id: 'MEDICAL', label: 'Medical Centre', icon: HeartPulse, color: 'text-red-600 bg-red-50 dark:bg-red-900/20' },
+  { id: 'DEPARTMENT', label: 'Department', icon: Library, color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20' },
+] as const;
 import { Button, StatusBadge, PageHeader, Card, LoadingSpinner } from '../components/UI';
+import { BookOpen, HeartPulse, Library } from 'lucide-react';
 import { DocumentPreviewModal } from '../components/student/DocumentPreviewModal';
 import { 
   CheckCircle, FileText, Trash2, Loader2, 
@@ -82,7 +87,7 @@ const DocumentCard = ({
                             </span>
                         )}
                         {!isUploaded && req.is_required && (
-                            <span className="text-[10px] font-bold text-amber-600 bg-primary/50/10 px-2 py-0.5 rounded-full uppercase tracking-wide">
+                            <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full uppercase tracking-wide">
                                 Required
                             </span>
                         )}
@@ -398,10 +403,10 @@ export default function OfficeView({
                 </div>
             </div>
 
-            <div className="flex-1 grid lg:grid-cols-5 gap-8 items-stretch mb-10">
-                <div className="lg:col-span-2 flex flex-col gap-6">
-                    <Card className="flex-1 flex flex-col justify-center p-8 bg-muted/20 border-border">
-                        <div className="space-y-8 max-w-md mx-auto w-full">
+            <div className="flex-1 grid lg:grid-cols-12 gap-8 items-stretch mb-10 overflow-hidden">
+                <div className="lg:col-span-4 flex flex-col gap-6 overflow-y-auto pr-2">
+                    <Card className="p-8 bg-muted/20 border-border">
+                        <div className="space-y-8 w-full">
                             <div className="space-y-4">
                                 <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-bold uppercase tracking-wider">
                                    <FileText size={14} /> Requirement
@@ -471,7 +476,7 @@ export default function OfficeView({
                     </div>
                 </div>
 
-                <div className="lg:col-span-3 bg-muted rounded-[2.5rem] overflow-hidden border-4 border-card shadow-[0_20px_50px_rgba(0,0,0,0.1)] relative flex items-center justify-center group/preview">
+                <div className="lg:col-span-8 bg-muted rounded-[2.5rem] overflow-hidden border-4 border-card shadow-[0_20px_50px_rgba(0,0,0,0.1)] relative flex items-center justify-center group/preview h-[60vh] lg:h-auto">
                     {activeDoc ? (
                         activeDoc.file.toLowerCase().endsWith('.pdf') ? (
                             <iframe 
