@@ -21,8 +21,8 @@ class InstitutionOnboardingTests(APITestCase):
         }
         response = self.client.post(url, data, format='json')
         if response.status_code != 201:
-            import sys
-            sys.stderr.write(f"Response Content: {response.content}\n")
+            self.fail(f"Registration failed: {response.data}")
+
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Institution.objects.count(), 1)
         self.assertEqual(User.objects.count(), 1)
@@ -42,6 +42,8 @@ class InstitutionOnboardingTests(APITestCase):
             'dean_name': 'Dr. Dean'
         }
         response = self.client.post(url, college_data, format='json')
+        if response.status_code != 201:
+            self.fail(f"College creation failed: {response.data}")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(College.objects.count(), 1)
         college = College.objects.get()
@@ -55,6 +57,8 @@ class InstitutionOnboardingTests(APITestCase):
             'hod_name': 'Dr. HOD'
         }
         response = self.client.post(url, dept_data, format='json')
+        if response.status_code != 201:
+            self.fail(f"Department creation failed: {response.data}")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Department.objects.count(), 1)
         dept = Department.objects.get()

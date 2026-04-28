@@ -1,107 +1,99 @@
-import React, { useState } from 'react';
-import { MOCK_STUDENTS, MOCK_ADMIN, MOCK_COLLEGES } from '../../services/mockData';
-import { Student, ClearanceStatus } from '../../types';
-import { Card, Badge, Button } from '../../components/UI';
-import { Search, Filter, Download, Building2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import {
+  Users, Search, Filter, MoreVertical,
+  Mail, Phone, GraduationCap, Building,
+  RefreshCw, ChevronRight, User
+} from 'lucide-react';
+import { Card, Button, LoadingSpinner } from '../../components/UI';
 
-interface Props {
-  onSelectStudent: (s: Student) => void;
-}
+export const StudentDirectory = ({ onSelectStudent }: { onSelectStudent: (s: any) => void }) => {
+  const [students, setStudents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState('');
 
-export const StudentDirectory = ({ onSelectStudent }: Props) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const fetchStudents = async () => {
+      setLoading(true);
+      try {
+          // List students by college/institution
+          const response = await fetch('/api/records/search-students/?q=', {
+              headers: {
+                  'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+              }
+          });
+          if (response.ok) {
+              const data = await response.json();
+              setStudents(data);
+          }
+      } catch (err) {
+          console.error('Failed to fetch students:', err);
+      } finally {
+          setLoading(false);
+      }
+  };
 
-  // COLLEGE FILTERING LOGIC
-  // In a real app, the API would return already filtered results.
-  // For this mock, we manually filter by the current logged-in admin's college.
-  // Fix: Use college_id for comparison as 'college' doesn't exist on Officer
-  const collegeStudents = MOCK_STUDENTS.filter(s => s.college_id === MOCK_ADMIN.college_id);
-  const collegeName = MOCK_COLLEGES.find(c => c.id === MOCK_ADMIN.college_id)?.name || 'N/A';
+  useEffect(() => {
+      fetchStudents();
+  }, []);
 
-  const filtered = collegeStudents.filter(s => {
-    const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) || s.jamb_number.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'ALL' || s.clearance_record.overall_status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const filtered = students.filter(s =>
+      s.name.toLowerCase().includes(query.toLowerCase()) ||
+      s.student_profile?.jamb_number.includes(query)
+  );
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-         <Building2 size={14} />
-         {/* Fix: Display the looked up college name */}
-         <span>Viewing students for: <strong className="text-foreground">{collegeName}</strong></span>
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+              <h1 className="text-2xl font-bold text-foreground">Student Directory</h1>
+              <p className="text-sm text-muted-foreground">Manage and browse students assigned to your office</p>
+          </div>
+          <Button variant="outline" onClick={fetchStudents} className="flex items-center gap-2">
+              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} /> Refresh
+          </Button>
       </div>
 
-      <Card className="p-4 flex flex-col md:flex-row gap-4 justify-between items-center">
-        <div className="relative w-full md:w-96">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-            <input 
-                type="text" 
-                placeholder="Search by Name or Reg No..." 
-                className="w-full pl-10 pr-4 py-2.5 bg-muted border border-border rounded-xl focus:ring-2 focus:ring-blue-500/20 outline-none text-sm"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-            />
-        </div>
-        <div className="flex gap-3 w-full md:w-auto">
-            <select 
-                className="px-4 py-2.5 bg-background border border-border rounded-xl text-sm outline-none"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-            >
-                <option value="ALL">All Statuses</option>
-                {Object.values(ClearanceStatus).map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
-            <Button variant="outline" className="whitespace-nowrap"><Download size={18} /> Export</Button>
-        </div>
-      </Card>
+      <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
+          <input
+            type="text"
+            placeholder="Search students..."
+            className="w-full pl-12 pr-4 py-3 bg-card border border-border rounded-2xl shadow-sm focus:ring-2 focus:ring-primary outline-none transition-all"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+      </div>
 
-      <Card className="overflow-hidden p-0">
-         <div className="overflow-x-auto">
-            <table className="w-full text-left">
-                <thead className="bg-muted/50 text-muted-foreground text-xs uppercase font-bold border-b border-border">
-                    <tr>
-                        <th className="py-4 px-6">Student Details</th>
-                        <th className="py-4 px-6">Department</th>
-                        <th className="py-4 px-6">Stage</th>
-                        <th className="py-4 px-6">Status</th>
-                        <th className="py-4 px-6 text-right">Action</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                    {filtered.map(student => (
-                        <tr key={student.id} className="hover:bg-muted hover:bg-accent/50 transition-colors">
-                            <td className="py-4 px-6">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 text-primary flex items-center justify-center font-bold text-sm">
-                                        {student.name.charAt(0)}
-                                    </div>
-                                    <div>
-                                        <p className="font-semibold text-foreground text-sm">{student.name}</p>
-                                        <p className="text-xs text-muted-foreground font-mono">{student.jamb_number}</p>
-                                    </div>
-                                </div>
-                            </td>
-                            <td className="py-4 px-6 text-sm text-muted-foreground dark:text-muted-foreground/80">{student.department}</td>
-                            <td className="py-4 px-6 text-sm">
-                                <span className="font-medium text-foreground/80 dark:text-foreground/80">Step 3</span>
-                                <span className="text-muted-foreground mx-1">/</span>
-                                <span className="text-muted-foreground">5</span>
-                            </td>
-                            <td className="py-4 px-6"><Badge status={student.clearance_record.overall_status} /></td>
-                            <td className="py-4 px-6 text-right">
-                                <Button size="sm" variant="outline" onClick={() => onSelectStudent(student)}>View</Button>
-                            </td>
-                        </tr>
-                    ))}
-                    {filtered.length === 0 && (
-                        <tr><td colSpan={5} className="py-12 text-center text-muted-foreground">No students found for this college.</td></tr>
-                    )}
-                </tbody>
-            </table>
-         </div>
-      </Card>
+      <div className="grid gap-4">
+          {loading ? (
+              <div className="py-20 flex justify-center"><LoadingSpinner text="Loading student records..." /></div>
+          ) : filtered.length === 0 ? (
+              <Card className="p-20 text-center flex flex-col items-center border-none bg-muted/30">
+                  <User size={48} className="text-muted-foreground mb-4 opacity-20" />
+                  <p className="text-muted-foreground font-medium">No students found in the directory.</p>
+              </Card>
+          ) : (
+              filtered.map((student) => (
+                  <Card
+                    key={student.id}
+                    className="p-4 hover:border-primary/50 transition-all cursor-pointer group"
+                    onClick={() => onSelectStudent(student)}
+                  >
+                      <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                              <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
+                                  {student.name.charAt(0)}
+                              </div>
+                              <div>
+                                  <h4 className="font-bold text-sm group-hover:text-primary transition-colors">{student.name}</h4>
+                                  <p className="text-xs text-muted-foreground font-mono">{student.student_profile?.jamb_number}</p>
+                              </div>
+                          </div>
+                          <ChevronRight size={18} className="text-muted-foreground group-hover:text-primary transition-colors" />
+                      </div>
+                  </Card>
+              ))
+          )}
+      </div>
     </div>
   );
 };

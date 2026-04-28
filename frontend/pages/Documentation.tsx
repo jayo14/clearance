@@ -178,7 +178,7 @@ export default function Documentation() {
                         <Card>
                             <h3 className="font-bold text-lg mb-2 flex items-center gap-2"><Server size={20} /> System Architecture</h3>
                             <p className="text-sm text-muted-foreground dark:text-muted-foreground/80 mb-4">
-                                The system is a React SPA communicating with a backend API (simulated via mock services).
+                                The system is a React SPA communicating with a backend API (Django REST Framework).
                             </p>
                             <div className="bg-slate-100 dark:bg-secondary p-4 rounded-lg font-mono text-xs overflow-x-auto">
                                 Client (React) --HTTPS--&gt; API Gateway --HTTPS--&gt; Core Service<br/>

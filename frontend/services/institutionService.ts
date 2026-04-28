@@ -1,6 +1,6 @@
 import { Institution, College, Department, Officer } from '../types';
 
-const API_URL = 'http://localhost:8000/api/institutions';
+const API_URL = '/api/institutions';
 
 export const institutionService = {
     getToken() {
@@ -77,13 +77,7 @@ export const institutionService = {
     },
 
     async getStaff(institutionId: string): Promise<Officer[]> {
-        // This might need a custom endpoint or filtering on a users endpoint
-        // For now, let's assume there's an endpoint to list officers for an institution
-        // Actually, looking at backend/accounts/views.py, there isn't one specifically for listing staff by institution yet.
-        // Let's use the profile endpoint for now if we just need current user,
-        // but for the Institution Admin to see all staff, we might need to add an endpoint.
-
-        const response = await fetch(`http://localhost:8000/api/accounts/list-officers/?institution_id=${institutionId}`, {
+        const response = await fetch(`/api/accounts/list-officers/?institution_id=${institutionId}`, {
             headers: {
                 'Authorization': `Bearer ${this.getToken()}`,
             },

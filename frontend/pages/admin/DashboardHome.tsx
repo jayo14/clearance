@@ -1,229 +1,131 @@
-
 import React, { useState, useEffect } from 'react';
-import { MOCK_STUDENTS } from '../../services/mockData';
-import { Card, Button, StatusBadge, Skeleton } from '../../components/UI';
-import { AdminUser, Student, OverallStatus } from '../../types';
+import { useNavigate } from 'react-router-dom';
 import { 
-  Clock, CheckCircle, XCircle, TrendingUp, TrendingDown, 
-  Timer, ArrowRight, FileText, AlertTriangle, Play,
-  BarChart2, FileSpreadsheet, X, Search
+  Users, CheckCircle, Clock, AlertCircle,
+  ArrowUpRight, BarChart2, Calendar, FileSpreadsheet,
+  ChevronRight, Search, Bell, Settings
 } from 'lucide-react';
 import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area 
+  AreaChart, Area, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer
 } from 'recharts';
+import { AdminUser, OverallStatus, ClearanceItem } from '../../types';
+import { Card, Button, StatusBadge, LoadingSpinner } from '../../components/UI';
+import { recordService } from '../../services/recordService';
 
-interface DashboardProps {
-  onNavigate: (view: string) => void;
+interface Props {
   user: AdminUser;
+  onNavigate: (view: string) => void;
 }
 
-export const DashboardHome = ({ onNavigate, user }: DashboardProps) => {
+const getDaysPendingText = (date: string) => {
+    const diff = new Date().getTime() - new Date(date).getTime();
+    const days = Math.floor(diff / (1000 * 3600 * 24));
+    if (days === 0) return 'Today';
+    if (days === 1) return 'Yesterday';
+    return `${days} days ago`;
+};
+
+const getDaysPendingColor = (date: string) => {
+    const diff = new Date().getTime() - new Date(date).getTime();
+    const days = Math.floor(diff / (1000 * 3600 * 24));
+    if (days > 3) return 'bg-red-100 text-red-700';
+    if (days > 1) return 'bg-amber-100 text-amber-700';
+    return 'bg-blue-100 text-blue-700';
+};
+
+export const DashboardHome = ({ user, onNavigate }: Props) => {
+  const [items, setItems] = useState<ClearanceItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [showAnnouncement, setShowAnnouncement] = useState(true);
 
-  // Mock Data Calculation
-  const pendingStudents = MOCK_STUDENTS.filter(s => s.clearance_record.overall_status === OverallStatus.IN_PROGRESS);
-  const pendingCount = pendingStudents.length;
-
-  // Simulate loading
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1000);
-    const interval = setInterval(() => setCurrentTime(new Date()), 60000); // Update minutely
-    return () => {
-      clearTimeout(timer);
-      clearInterval(interval);
-    };
+      const fetchItems = async () => {
+          try {
+              const data = await recordService.getOfficerClearanceList();
+              setItems(data);
+          } catch (err) {
+              console.error('Failed to fetch dashboard items:', err);
+          } finally {
+              setLoading(false);
+          }
+      };
+      fetchItems();
   }, []);
 
-  const getGreeting = () => {
-    const hour = currentTime.getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
-  };
+  const pendingItems = items.filter(i => i.status === 'pending');
+  const approvedItems = items.filter(i => i.status === 'approved');
+  const rejectedItems = items.filter(i => i.status === 'rejected');
 
-  const chartData = [
-    { day: 'Mon', approved: 12, rejected: 2, pending: 5 },
-    { day: 'Tue', approved: 19, rejected: 3, pending: 8 },
-    { day: 'Wed', approved: 15, rejected: 1, pending: 4 },
-    { day: 'Thu', approved: 22, rejected: 4, pending: 10 },
-    { day: 'Fri', approved: 30, rejected: 5, pending: 7 },
-    { day: 'Sat', approved: 8, rejected: 0, pending: 2 },
-    { day: 'Sun', approved: 5, rejected: 0, pending: 1 },
+  const stats = [
+    { label: 'Pending Review', value: pendingItems.length, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50', trend: '+12%' },
+    { label: 'Approved Today', value: approvedItems.filter(i => getDaysPendingText(i.updated_at || i.created_at) === 'Today').length, icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50', trend: '+5%' },
+    { label: 'Total Handled', value: items.length, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50', trend: '+8%' },
+    { label: 'Action Required', value: rejectedItems.length, icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50', trend: 'Critical' },
   ];
 
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex justify-between items-end">
-           <div className="space-y-2">
-              <Skeleton className="h-8 w-64" />
-              <Skeleton className="h-4 w-48" />
-           </div>
-           <Skeleton className="h-10 w-32" />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-           {[1,2,3,4].map(i => <Skeleton key={i} className="h-32 rounded-2xl" />)}
-        </div>
-        <div className="grid lg:grid-cols-3 gap-6">
-           <Skeleton className="lg:col-span-2 h-96 rounded-2xl" />
-           <Skeleton className="h-96 rounded-2xl" />
-        </div>
-      </div>
-    );
-  }
+  const chartData = [
+    { day: 'Mon', approved: 40, rejected: 10 },
+    { day: 'Tue', approved: 30, rejected: 15 },
+    { day: 'Wed', approved: 60, rejected: 5 },
+    { day: 'Thu', approved: 45, rejected: 12 },
+    { day: 'Fri', approved: 80, rejected: 8 },
+    { day: 'Sat', approved: 35, rejected: 4 },
+    { day: 'Sun', approved: 25, rejected: 2 },
+  ];
 
-  const getDaysPendingColor = (dateString: string) => {
-      const days = Math.floor((new Date().getTime() - new Date(dateString).getTime()) / (1000 * 3600 * 24));
-      if (days > 3) return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
-      if (days >= 1) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
-      return 'bg-primary/20 text-primary dark:bg-emerald-900/30 dark:text-emerald-300';
-  };
-
-  const getDaysPendingText = (dateString: string) => {
-      const days = Math.floor((new Date().getTime() - new Date(dateString).getTime()) / (1000 * 3600 * 24));
-      if (days === 0) return 'Today';
-      if (days === 1) return '1 day ago';
-      return `${days} days ago`;
-  };
+  if (loading) return <div className="p-12 flex justify-center"><LoadingSpinner text="Loading dashboard..." /></div>;
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-      
-      {/* Announcement Banner */}
-      {showAnnouncement && (
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-4 text-white flex items-start sm:items-center justify-between shadow-lg shadow-primary/20 animate-slide-up-fade">
-              <div className="flex items-center gap-3">
-                  <div className="p-2 bg-primary-foreground/20 rounded-lg backdrop-blur-sm animate-pulse-slow">
-                      <AlertTriangle size={20} className="text-white" />
-                  </div>
-                  <div>
-                      <h4 className="font-bold text-sm">System Maintenance Scheduled</h4>
-                      <p className="text-xs text-blue-100">The portal will be undergoing maintenance on Saturday, 10 PM - 12 AM.</p>
-                  </div>
-              </div>
-              <button onClick={() => setShowAnnouncement(false)} className="p-1 hover:bg-primary-foreground/20 rounded-full transition-colors">
-                  <X size={18} />
-              </button>
+    <div className="space-y-8 animate-in fade-in duration-500">
+      {/* Welcome Section */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+              <h1 className="text-3xl font-extrabold text-foreground tracking-tight">Welcome back, {user.first_name || user.name.split(' ')[0]}!</h1>
+              <p className="text-muted-foreground mt-1 font-medium flex items-center gap-2">
+                  <Calendar size={16} /> {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+              </p>
           </div>
-      )}
-
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 animate-slide-up-fade" style={{ animationDelay: '0.1s' }}>
-         <div>
-            <h1 className="text-3xl font-bold text-foreground tracking-tight">
-               {getGreeting()}, {(user?.name || 'Officer').split(' ')[0]}
-            </h1>
-            <div className="flex items-center gap-2 mt-2 text-muted-foreground font-medium">
-               <Clock size={16} />
-               <span>
-                  {currentTime.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-               </span>
-               <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600"></span>
-               <span>
-                  {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-               </span>
-            </div>
-            <p className="mt-1 text-sm text-primary font-medium">
-               You have <span className="font-bold">{pendingCount}</span> pending clearances to review.
-            </p>
-         </div>
-         <div className="flex gap-3">
-             <Button variant="outline" onClick={() => onNavigate('students')}>
-                 <Search size={16} /> Search Student
-             </Button>
-             <Button onClick={() => onNavigate('queue')}>
-                 Review Queue <ArrowRight size={16} />
-             </Button>
-         </div>
+          <div className="flex gap-3">
+              <Button variant="outline" className="hidden sm:flex items-center gap-2">
+                  <FileSpreadsheet size={18} /> Export Data
+              </Button>
+              <Button variant="primary" className="shadow-lg shadow-primary/20" onClick={() => onNavigate('queue')}>
+                  View Queue <ChevronRight size={18} />
+              </Button>
+          </div>
       </div>
 
-      {/* Stats Cards Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-         {/* Pending */}
-         <Card 
-            className="border-l-4 border-l-amber-500 hover:shadow-md transition-all cursor-pointer animate-slide-up-fade" 
-            style={{ animationDelay: '0.2s' }}
-            onClick={() => onNavigate('queue')}
-         >
-             <div className="flex justify-between items-start mb-4">
-                 <div className="p-3 bg-primary/5 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-xl">
-                     <Clock size={24} />
-                 </div>
-                 <span className="flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-400 bg-primary/5 dark:bg-amber-900/20 px-2 py-1 rounded-full">
-                     <TrendingUp size={12} /> +5
-                 </span>
-             </div>
-             <h3 className="text-3xl font-bold text-foreground mb-1">{pendingCount}</h3>
-             <p className="text-sm font-medium text-muted-foreground">Pending Review</p>
-         </Card>
-
-         {/* Approved */}
-         <Card 
-            className="border-l-4 border-l-emerald-500 hover:shadow-md transition-all animate-slide-up-fade"
-            style={{ animationDelay: '0.3s' }}
-         >
-             <div className="flex justify-between items-start mb-4">
-                 <div className="p-3 bg-primary/10 text-primary rounded-xl">
-                     <CheckCircle size={24} />
-                 </div>
-                 <span className="flex items-center gap-1 text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded-full">
-                     <TrendingUp size={12} /> +12%
-                 </span>
-             </div>
-             <h3 className="text-3xl font-bold text-foreground mb-1">28</h3>
-             <p className="text-sm font-medium text-muted-foreground">Approved Today</p>
-         </Card>
-
-         {/* Rejected */}
-         <Card 
-            className="border-l-4 border-l-red-500 hover:shadow-md transition-all animate-slide-up-fade"
-            style={{ animationDelay: '0.4s' }}
-         >
-             <div className="flex justify-between items-start mb-4">
-                 <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl">
-                     <XCircle size={24} />
-                 </div>
-                 <span className="flex items-center gap-1 text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded-full">
-                     <TrendingDown size={12} /> -2%
-                 </span>
-             </div>
-             <h3 className="text-3xl font-bold text-foreground mb-1">3</h3>
-             <p className="text-sm font-medium text-muted-foreground">Rejected Today</p>
-         </Card>
-
-         {/* Avg Time */}
-         <Card 
-            className="border-l-4 border-l-blue-500 hover:shadow-md transition-all animate-slide-up-fade"
-            style={{ animationDelay: '0.5s' }}
-         >
-             <div className="flex justify-between items-start mb-4">
-                 <div className="p-3 bg-primary/10 text-primary rounded-xl">
-                     <Timer size={24} />
-                 </div>
-                 <span className="flex items-center gap-1 text-xs font-bold text-muted-foreground bg-muted px-2 py-1 rounded-full">
-                     ~ Same
-                 </span>
-             </div>
-             <h3 className="text-3xl font-bold text-foreground mb-1">2.4h</h3>
-             <p className="text-sm font-medium text-muted-foreground">Avg. Processing Time</p>
-         </Card>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {stats.map((stat, i) => (
+              <Card key={i} className="p-6 hover:shadow-xl transition-all duration-300 group border-border">
+                  <div className="flex justify-between items-start mb-4">
+                      <div className={`p-3 rounded-2xl ${stat.bg} ${stat.color} group-hover:scale-110 transition-transform`}>
+                          <stat.icon size={24} />
+                      </div>
+                      <span className={`text-xs font-bold px-2 py-1 rounded-full ${stat.trend.includes('+') ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                          {stat.trend}
+                      </span>
+                  </div>
+                  <h3 className="text-3xl font-black text-foreground mb-1">{stat.value}</h3>
+                  <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider">{stat.label}</p>
+              </Card>
+          ))}
       </div>
 
-      {/* Main Content Grid */}
       <div className="grid lg:grid-cols-3 gap-8">
-          
-          {/* Left Column: Queue & Actions (Span 2) */}
-          <div className="lg:col-span-2 space-y-8 animate-slide-up-fade" style={{ animationDelay: '0.6s' }}>
-              
+          {/* Main Content: Table (Span 2) */}
+          <div className="lg:col-span-2 space-y-8">
               {/* Quick Actions */}
-              <div>
-                  <h3 className="text-lg font-bold text-foreground mb-4">Quick Actions</h3>
+              <div className="bg-muted/30 rounded-[2rem] p-8 border border-border">
+                  <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
+                      <ArrowUpRight size={20} className="text-primary" />
+                      Quick Actions
+                  </h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                       {[
-                          { icon: Play, label: 'Start Reviewing', desc: 'Oldest first', action: () => onNavigate('queue'), color: 'text-primary bg-primary/10' },
-                          { icon: AlertTriangle, label: 'Urgent Cases', desc: '>3 days pending', action: () => onNavigate('queue'), color: 'text-amber-600 bg-primary/5 dark:bg-amber-900/20' },
+                          { icon: Users, label: 'Students', desc: 'View Directory', action: () => onNavigate('students'), color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' },
+                          { icon: Clock, label: 'Queue', desc: 'Pending Items', action: () => onNavigate('queue'), color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20' },
                           { icon: FileSpreadsheet, label: 'Reports', desc: 'Download CSV', action: () => alert('Report generating...'), color: 'text-primary bg-primary/10' },
                           { icon: BarChart2, label: 'Analytics', desc: 'View insights', action: () => onNavigate('analytics'), color: 'text-purple-600 bg-purple-50 dark:bg-purple-900/20' },
                       ].map((item, i) => (
@@ -252,7 +154,7 @@ export const DashboardHome = ({ onNavigate, user }: DashboardProps) => {
                       <Button variant="outline" size="sm" onClick={() => onNavigate('queue')}>View Full Queue</Button>
                   </div>
                   
-                  {pendingStudents.length === 0 ? (
+                  {pendingItems.length === 0 ? (
                       <div className="p-12 text-center flex flex-col items-center">
                           <div className="w-16 h-16 bg-primary/20 dark:bg-emerald-900/30 text-primary rounded-full flex items-center justify-center mb-4 animate-scale-in">
                               <CheckCircle size={32} />
@@ -266,45 +168,34 @@ export const DashboardHome = ({ onNavigate, user }: DashboardProps) => {
                               <thead className="bg-muted/50 text-xs font-bold uppercase text-muted-foreground border-b border-border">
                                   <tr>
                                       <th className="px-6 py-4">Student</th>
-                                      <th className="px-6 py-4">Department</th>
-                                      <th className="px-6 py-4">Submitted</th>
                                       <th className="px-6 py-4">Status</th>
+                                      <th className="px-6 py-4">Submitted</th>
                                       <th className="px-6 py-4 text-right">Action</th>
                                   </tr>
                               </thead>
                               <tbody className="divide-y divide-border">
-                                  {pendingStudents.slice(0, 5).map((student) => {
-                                      const submittedDate = student.clearance_record.updated_at;
+                                  {pendingItems.slice(0, 5).map((item) => {
+                                      const submittedDate = item.updated_at || item.created_at;
                                       return (
-                                          <tr key={student.id} className="hover:bg-muted/50 transition-colors group">
+                                          <tr key={item.id} className="hover:bg-muted/50 transition-colors group">
                                               <td className="px-6 py-4">
                                                   <div className="flex items-center gap-3">
-                                                      <div className="w-8 h-8 rounded-full bg-muted overflow-hidden">
-                                                          {student.passport_photo_url ? (
-                                                              <img src={student.passport_photo_url} alt="" className="w-full h-full object-cover" />
-                                                          ) : (
-                                                              <span className="flex items-center justify-center h-full font-bold text-xs text-muted-foreground">{student.name.charAt(0)}</span>
-                                                          )}
+                                                      <div className="w-8 h-8 rounded-full bg-muted overflow-hidden flex items-center justify-center">
+                                                          <span className="font-bold text-xs text-muted-foreground">{item.student_name ? item.student_name.charAt(0) : '?'}</span>
                                                       </div>
                                                       <div>
-                                                          <p className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">{student.name}</p>
-                                                          <p className="text-xs text-muted-foreground font-mono">{student.jamb_number}</p>
+                                                          <p className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">{item.student_name}</p>
                                                       </div>
                                                   </div>
                                               </td>
-                                              <td className="px-6 py-4 text-sm text-muted-foreground">
-                                                  {student.department}
+                                              <td className="px-6 py-4">
+                                                  <StatusBadge status={item.status} size="sm" />
                                               </td>
                                               <td className="px-6 py-4 text-sm text-muted-foreground">
                                                   {getDaysPendingText(submittedDate)}
                                               </td>
-                                              <td className="px-6 py-4">
-                                                  <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full ${getDaysPendingColor(submittedDate)}`}>
-                                                      {Math.floor((new Date().getTime() - new Date(submittedDate).getTime()) / (1000 * 3600 * 24)) > 1 ? 'Delayed' : 'New'}
-                                                  </span>
-                                              </td>
                                               <td className="px-6 py-4 text-right">
-                                                  <Button size="sm" variant="secondary" onClick={() => onNavigate('queue')}>Review</Button>
+                                                  <Button size="sm" variant="secondary" onClick={() => onNavigate(`review/${item.id}`)}>Review</Button>
                                               </td>
                                           </tr>
                                       );
